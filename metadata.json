@@ -1,0 +1,5 @@
+{
+  "name": "11.26-2测试—个人信息汇总页",
+  "description": "Internal employee dashboard featuring notifications, personal progress, quick actions, and a leaderboard.",
+  "requestFramePermissions": []
+}
