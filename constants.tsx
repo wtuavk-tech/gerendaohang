@@ -1,3 +1,4 @@
+
 import { Employee, LeaderboardEntry, Notification, ServiceItem, Course, BenefitItem, DownloadItem, Gift, PointRule, RankStandard, FundRecord } from './types.ts';
 
 export const CURRENT_USER: Employee = {
@@ -27,7 +28,11 @@ export const NOTIFICATIONS: Notification[] = [
     content: '各位同事：\n\n根据公司年度人才发展规划，2025年度秋季职级晋升评审工作即将启动。本次评审旨在选拔优秀人才，激励员工持续成长。\n\n一、评审范围\n入职满6个月且符合晋升条件的正式员工。\n\n二、时间安排\n1. 个人申报：11月20日 - 11月25日\n2. 部门初审：11月26日 - 11月30日\n3. 述职评审：12月5日 - 12月10日\n\n请大家提前准备述职材料，祝各位取得好成绩！',
     readCount: 1205,
     publisher: '人力资源部',
-    expiryDate: '2025-12-10'
+    expiryDate: '2025-12-10',
+    publishLevel: '公司',
+    priority: '重要',
+    displayOrder: 1,
+    pinnedOrder: 1
   },
   {
     id: 'n2',
@@ -37,7 +42,11 @@ export const NOTIFICATIONS: Notification[] = [
     content: '为进一步规范财务报销流程，提高审批效率，财务部对报销系统进行了升级。新的报销流程将于下月1日正式上线。主要变动包括：取消纸质发票粘贴环节，全面推行电子发票归档...',
     readCount: 850,
     publisher: '财务部',
-    expiryDate: '2026-01-01'
+    expiryDate: '2026-01-01',
+    publishLevel: '公司',
+    priority: '普通',
+    displayOrder: 2,
+    pinnedOrder: 0
   },
   {
     id: 'n3',
@@ -47,7 +56,11 @@ export const NOTIFICATIONS: Notification[] = [
     content: '技术是推动公司发展的核心动力。为营造浓厚的技术氛围，鼓励全员创新，公司决定将12月定为“技术创新月”。届时将举办黑客马拉松、技术沙龙分享等系列活动，欢迎大家踊跃报名。',
     readCount: 620,
     publisher: '技术委员会',
-    expiryDate: '2025-11-20' // Expired example
+    expiryDate: '2025-11-20', // Expired example
+    publishLevel: '部门',
+    priority: '普通',
+    displayOrder: 3,
+    pinnedOrder: 0
   }
 ];
 
@@ -115,10 +128,10 @@ export const SERVICE_ITEMS: ServiceItem[] = [
 ];
 
 export const INITIAL_BENEFITS: BenefitItem[] = [
-    { id: 101, title: '空调清洗员工价', points: 0, price: 69, imageUrl: 'https://picsum.photos/300/300?random=101' },
-    { id: 102, title: '油烟机清洗员工价', points: 0, price: 89, imageUrl: 'https://picsum.photos/300/300?random=102' },
-    { id: 103, title: '洗衣机清洗员工价', points: 0, price: 59, imageUrl: 'https://picsum.photos/300/300?random=103' },
-    { id: 104, title: '滚筒洗衣机深度洗', points: 10, imageUrl: 'https://picsum.photos/300/300?random=201' },
+    { id: 101, title: '空调清洗员工价', points: 690, price: 69, imageUrl: 'https://picsum.photos/300/300?random=101' },
+    { id: 102, title: '油烟机清洗员工价', points: 890, price: 89, imageUrl: 'https://picsum.photos/300/300?random=102' },
+    { id: 103, title: '洗衣机清洗员工价', points: 590, price: 59, imageUrl: 'https://picsum.photos/300/300?random=103' },
+    { id: 104, title: '滚筒洗衣机深度洗', points: 1500, imageUrl: 'https://picsum.photos/300/300?random=201' },
     { id: 105, title: '家用工具箱套装', points: 2000, imageUrl: 'https://picsum.photos/300/300?random=202' },
 ];
 

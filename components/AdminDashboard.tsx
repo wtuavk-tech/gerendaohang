@@ -1,6 +1,7 @@
+
 import React, { useState } from 'react';
-import { ArrowLeft, LayoutDashboard, Bell, BookOpen, Settings, Edit, Trash2, Plus, Save, X, CheckSquare, Square, Gift, Download, UploadCloud, Coins, UserCog, Trophy, Award, Layers, PiggyBank, MessageSquare, Check, Target } from 'lucide-react';
-import { Notification, Course, BenefitItem, DownloadItem, PointRule, LeaderboardEntry, RankStandard, RankDimension, FundRecord, Feedback } from '../types.ts';
+import { ArrowLeft, LayoutDashboard, Bell, BookOpen, Settings, Edit, Trash2, Plus, Save, X, CheckSquare, Square, Gift, Download, UploadCloud, Coins, UserCog, Trophy, Award, Layers, PiggyBank, MessageSquare, Check, Target, History, RotateCcw } from 'lucide-react';
+import { Notification, Course, BenefitItem, DownloadItem, PointRule, LeaderboardEntry, RankStandard, RankDimension, FundRecord, Feedback, RedemptionRecord, PointAdjustmentRecord } from '../types.ts';
 
 interface AdminDashboardProps {
   onBack: () => void;
@@ -25,6 +26,10 @@ interface AdminDashboardProps {
   setFundRecords: React.Dispatch<React.SetStateAction<FundRecord[]>>;
   feedbacks: Feedback[];
   setFeedbacks: React.Dispatch<React.SetStateAction<Feedback[]>>;
+  // New History Props
+  redemptionHistory: RedemptionRecord[];
+  pointAdjustmentRecords: PointAdjustmentRecord[];
+  onRevokePointAdjustment: (id: string) => void;
 }
 
 type Tab = 'notice' | 'learning' | 'benefits' | 'downloads' | 'points' | 'ranks' | 'funds' | 'feedback';
@@ -39,7 +44,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     employees, onAdjustPoints,
     rankStandards, setRankStandards, onUpdateRankProgress,
     fundRecords, setFundRecords,
-    feedbacks, setFeedbacks
+    feedbacks, setFeedbacks,
+    redemptionHistory,
+    pointAdjustmentRecords, onRevokePointAdjustment
 }) => {
   const [activeTab, setActiveTab] = useState<Tab>('notice');
   
@@ -50,13 +57,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Partial<Course>>({});
   
+  const [benefitSubTab, setBenefitSubTab] = useState<'products' | 'history'>('products');
   const [isBenefitModalOpen, setIsBenefitModalOpen] = useState(false);
   const [editingBenefit, setEditingBenefit] = useState<Partial<BenefitItem>>({});
   
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
   const [editingDownload, setEditingDownload] = useState<Partial<DownloadItem>>({});
   
-  const [pointSubTab, setPointSubTab] = useState<'rules' | 'members'>('rules');
+  const [pointSubTab, setPointSubTab] = useState<'rules' | 'members' | 'history'>('rules');
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<Partial<PointRule>>({});
   const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
@@ -102,6 +110,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           isPinned: editingNotice.isPinned || false,
           publisher: editingNotice.publisher || '行政部',
           expiryDate: editingNotice.expiryDate || '',
+          publishLevel: editingNotice.publishLevel || '公司',
+          priority: editingNotice.priority || '普通',
+          displayOrder: editingNotice.displayOrder || 99,
+          pinnedOrder: editingNotice.pinnedOrder || 0
       };
       if (editingNotice.id) setNotifications(prev => prev.map(n => n.id === newNotice.id ? newNotice : n));
       else setNotifications(prev => [newNotice, ...prev]);
@@ -417,8 +429,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </div>
               )}
 
-              {/* ... [Other tabs remain largely the same, just keeping structure valid] ... */}
-              {/* --- 1. Notice Tab --- */}
+              {/* --- 1. Notice Tab (Enhanced) --- */}
               {activeTab === 'notice' && (
                    <div className="space-y-6 animate-fade-in">
                        <div className="flex justify-end">
@@ -426,14 +437,37 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                        </div>
                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                           <table className="w-full text-left">
-                              <thead className="bg-slate-50 border-b border-slate-200"><tr><th className="p-4 pl-6">标题</th><th className="p-4">发布人</th><th className="p-4">日期</th><th className="p-4">有效期</th><th className="p-4 text-right">操作</th></tr></thead>
+                              <thead className="bg-slate-50 border-b border-slate-200">
+                                  <tr>
+                                      <th className="p-4 pl-6">标题</th>
+                                      <th className="p-4">层级/发布人</th>
+                                      <th className="p-4">优先级</th>
+                                      <th className="p-4">日期/有效期</th>
+                                      <th className="p-4">排序(展/顶)</th>
+                                      <th className="p-4 text-right">操作</th>
+                                  </tr>
+                              </thead>
                               <tbody className="divide-y divide-slate-100">
                                   {notifications.map(n => (
                                       <tr key={n.id} className="hover:bg-slate-50">
-                                          <td className="p-4 pl-6 font-medium">{n.title}</td>
-                                          <td className="p-4 text-sm text-slate-500">{n.publisher}</td>
-                                          <td className="p-4 text-sm text-slate-500">{n.date}</td>
-                                          <td className="p-4 text-sm text-slate-500">{n.expiryDate || '长期'}</td>
+                                          <td className="p-4 pl-6 font-medium max-w-xs truncate">{n.title}</td>
+                                          <td className="p-4 text-sm text-slate-500">
+                                              <div className="font-bold">{n.publishLevel || '公司'}</div>
+                                              <div className="text-xs">{n.publisher}</div>
+                                          </td>
+                                          <td className="p-4 text-sm">
+                                              <span className={`px-2 py-1 rounded text-xs font-bold ${n.priority==='紧急'?'bg-red-100 text-red-600': n.priority==='重要'?'bg-orange-100 text-orange-600':'bg-blue-100 text-blue-600'}`}>
+                                                  {n.priority || '普通'}
+                                              </span>
+                                          </td>
+                                          <td className="p-4 text-sm text-slate-500">
+                                              <div>{n.date}</div>
+                                              <div className="text-xs text-slate-400">至 {n.expiryDate || '长期'}</div>
+                                          </td>
+                                          <td className="p-4 text-sm font-mono text-slate-500">
+                                              <div>展:{n.displayOrder}</div>
+                                              {n.isPinned && <div className="text-orange-500">顶:{n.pinnedOrder}</div>}
+                                          </td>
                                           <td className="p-4 text-right space-x-2">
                                               <button onClick={() => { setEditingNotice(n); setIsNoticeModalOpen(true); }} className="p-2 text-blue-600"><Edit size={18} /></button>
                                               <button onClick={() => handleDeleteNotice(n.id)} className="p-2 text-red-600"><Trash2 size={18} /></button>
@@ -483,34 +517,66 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </div>
               )}
 
-              {/* --- 3. Benefits Tab --- */}
+              {/* --- 3. Benefits Tab (Enhanced) --- */}
               {activeTab === 'benefits' && (
                   <div className="space-y-6 animate-fade-in">
-                       <div className="flex justify-end">
-                          <button onClick={() => { setEditingBenefit({}); setIsBenefitModalOpen(true); }} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl shadow-md flex items-center gap-2 active:scale-95 transition-all"><Plus size={20} /> 上架商品</button>
+                       <div className="flex gap-4 mb-4">
+                           <button onClick={() => setBenefitSubTab('products')} className={`px-4 py-2 rounded-lg font-bold ${benefitSubTab==='products'?'bg-slate-800 text-white':'bg-white text-slate-600'}`}>商品管理</button>
+                           <button onClick={() => setBenefitSubTab('history')} className={`px-4 py-2 rounded-lg font-bold ${benefitSubTab==='history'?'bg-slate-800 text-white':'bg-white text-slate-600'}`}>兑换记录</button>
                        </div>
-                       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                          <table className="w-full text-left">
-                              <thead className="bg-slate-50 border-b border-slate-200"><tr><th className="p-4 pl-6">商品名称</th><th className="p-4">积分/价格</th><th className="p-4 text-right">操作</th></tr></thead>
-                              <tbody className="divide-y divide-slate-100">
-                                  {benefits.map(b => (
-                                      <tr key={b.id} className="hover:bg-slate-50">
-                                          <td className="p-4 pl-6 flex items-center gap-3">
-                                              <img src={b.imageUrl} className="w-10 h-10 rounded-lg object-cover" />
-                                              <span className="font-medium">{b.title}</span>
-                                          </td>
-                                          <td className="p-4 text-sm text-slate-500">
-                                              {b.points > 0 ? `${b.points} 积分` : `¥${b.price}`}
-                                          </td>
-                                          <td className="p-4 text-right space-x-2">
-                                              <button onClick={() => { setEditingBenefit(b); setIsBenefitModalOpen(true); }} className="p-2 text-blue-600"><Edit size={18} /></button>
-                                              <button onClick={() => handleDeleteBenefit(b.id)} className="p-2 text-red-600"><Trash2 size={18} /></button>
-                                          </td>
-                                      </tr>
-                                  ))}
-                              </tbody>
-                          </table>
-                       </div>
+
+                       {benefitSubTab === 'products' ? (
+                           <>
+                               <div className="flex justify-end">
+                                  <button onClick={() => { setEditingBenefit({}); setIsBenefitModalOpen(true); }} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl shadow-md flex items-center gap-2 active:scale-95 transition-all"><Plus size={20} /> 上架商品</button>
+                               </div>
+                               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                                  <table className="w-full text-left">
+                                      <thead className="bg-slate-50 border-b border-slate-200"><tr><th className="p-4 pl-6">商品名称</th><th className="p-4">积分/价格</th><th className="p-4 text-right">操作</th></tr></thead>
+                                      <tbody className="divide-y divide-slate-100">
+                                          {benefits.map(b => (
+                                              <tr key={b.id} className="hover:bg-slate-50">
+                                                  <td className="p-4 pl-6 flex items-center gap-3">
+                                                      <img src={b.imageUrl} className="w-10 h-10 rounded-lg object-cover" />
+                                                      <span className="font-medium">{b.title}</span>
+                                                  </td>
+                                                  <td className="p-4 text-sm text-slate-500">
+                                                      {b.points > 0 ? `${b.points} 积分` : `¥${b.price}`}
+                                                  </td>
+                                                  <td className="p-4 text-right space-x-2">
+                                                      <button onClick={() => { setEditingBenefit(b); setIsBenefitModalOpen(true); }} className="p-2 text-blue-600"><Edit size={18} /></button>
+                                                      <button onClick={() => handleDeleteBenefit(b.id)} className="p-2 text-red-600"><Trash2 size={18} /></button>
+                                                  </td>
+                                              </tr>
+                                          ))}
+                                      </tbody>
+                                  </table>
+                               </div>
+                           </>
+                       ) : (
+                           // Redemption History Sub-tab
+                           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                              <table className="w-full text-left">
+                                  <thead className="bg-slate-50 border-b border-slate-200"><tr><th className="p-4 pl-6">时间</th><th className="p-4">项目名称</th><th className="p-4">消耗积分</th><th className="p-4">券码</th></tr></thead>
+                                  <tbody className="divide-y divide-slate-100">
+                                      {redemptionHistory.map(r => (
+                                          <tr key={r.id} className="hover:bg-slate-50">
+                                              <td className="p-4 pl-6 text-slate-500 text-sm">{r.date}</td>
+                                              <td className="p-4 font-medium flex items-center gap-2">
+                                                  <img src={r.imageUrl} className="w-8 h-8 rounded object-cover" />
+                                                  {r.title}
+                                              </td>
+                                              <td className="p-4 font-bold text-blue-600 font-mono">{r.points}</td>
+                                              <td className="p-4 font-mono text-sm bg-slate-50 rounded select-all w-fit px-2">{r.redeemCode}</td>
+                                          </tr>
+                                      ))}
+                                      {redemptionHistory.length === 0 && (
+                                          <tr><td colSpan={4} className="p-8 text-center text-slate-400">暂无兑换记录</td></tr>
+                                      )}
+                                  </tbody>
+                              </table>
+                           </div>
+                       )}
                   </div>
               )}
 
@@ -544,15 +610,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </div>
               )}
 
-              {/* --- 5. Points Tab --- */}
+              {/* --- 5. Points Tab (Enhanced) --- */}
               {activeTab === 'points' && (
                   <div className="space-y-6 animate-fade-in">
                        <div className="flex gap-4 mb-4">
                            <button onClick={() => setPointSubTab('rules')} className={`px-4 py-2 rounded-lg font-bold ${pointSubTab==='rules'?'bg-slate-800 text-white':'bg-white text-slate-600'}`}>规则配置</button>
                            <button onClick={() => setPointSubTab('members')} className={`px-4 py-2 rounded-lg font-bold ${pointSubTab==='members'?'bg-slate-800 text-white':'bg-white text-slate-600'}`}>积分调整</button>
+                           <button onClick={() => setPointSubTab('history')} className={`px-4 py-2 rounded-lg font-bold ${pointSubTab==='history'?'bg-slate-800 text-white':'bg-white text-slate-600'}`}>调整记录</button>
                        </div>
 
-                       {pointSubTab === 'rules' ? (
+                       {pointSubTab === 'rules' && (
                            <>
                                <div className="flex justify-end">
                                    <button onClick={() => { setEditingRule({}); setIsRuleModalOpen(true); }} className="bg-blue-600 text-white px-6 py-2.5 rounded-xl shadow-md flex items-center gap-2"><Plus size={20} /> 新增规则</button>
@@ -576,7 +643,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                   </table>
                                </div>
                            </>
-                       ) : (
+                       )}
+                       
+                       {pointSubTab === 'members' && (
                            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                                <table className="w-full text-left">
                                   <thead className="bg-slate-50 border-b border-slate-200"><tr><th className="p-4 pl-6">员工</th><th className="p-4">部门</th><th className="p-4">当前积分</th><th className="p-4 text-right">操作</th></tr></thead>
@@ -594,6 +663,39 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                               </td>
                                           </tr>
                                       ))}
+                                  </tbody>
+                               </table>
+                           </div>
+                       )}
+
+                       {/* Point Adjustment History */}
+                       {pointSubTab === 'history' && (
+                           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                               <table className="w-full text-left">
+                                  <thead className="bg-slate-50 border-b border-slate-200"><tr><th className="p-4 pl-6">时间</th><th className="p-4">对象</th><th className="p-4">变动积分</th><th className="p-4">操作人</th><th className="p-4">状态/操作</th></tr></thead>
+                                  <tbody className="divide-y divide-slate-100">
+                                      {pointAdjustmentRecords.map(r => (
+                                          <tr key={r.id} className="hover:bg-slate-50">
+                                              <td className="p-4 pl-6 text-sm text-slate-500">{r.date}</td>
+                                              <td className="p-4 font-bold">{r.targetUserName}</td>
+                                              <td className={`p-4 font-mono font-bold ${r.amount > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                  {r.amount > 0 ? '+' : ''}{r.amount}
+                                              </td>
+                                              <td className="p-4 text-sm">{r.operator}</td>
+                                              <td className="p-4">
+                                                  {r.isRevoked ? (
+                                                      <span className="text-xs bg-slate-100 text-slate-400 px-2 py-1 rounded">已撤销 ({r.revokedAt})</span>
+                                                  ) : (
+                                                      <button onClick={() => onRevokePointAdjustment(r.id)} className="flex items-center gap-1 text-xs bg-orange-50 text-orange-600 px-3 py-1.5 rounded-lg font-bold hover:bg-orange-100 transition-colors">
+                                                          <RotateCcw size={12} /> 撤销
+                                                      </button>
+                                                  )}
+                                              </td>
+                                          </tr>
+                                      ))}
+                                      {pointAdjustmentRecords.length === 0 && (
+                                          <tr><td colSpan={5} className="p-8 text-center text-slate-400">暂无调整记录</td></tr>
+                                      )}
                                   </tbody>
                                </table>
                            </div>
@@ -807,21 +909,49 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
       )}
 
-      {/* 2. Notice Modal */}
+      {/* 2. Notice Modal (Updated with new fields) */}
       {isNoticeModalOpen && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
               <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh]">
                   <div className="p-6 border-b border-slate-100 flex justify-between items-center"><h3 className="text-xl font-bold">公告编辑</h3><button onClick={() => setIsNoticeModalOpen(false)}><X size={20} /></button></div>
                   <div className="p-8 space-y-6 overflow-y-auto">
                       <div><label className="font-bold block mb-2">标题</label><input value={editingNotice.title||''} onChange={e=>setEditingNotice({...editingNotice, title:e.target.value})} className="w-full border p-3 rounded-xl" /></div>
+                      
                       <div className="grid grid-cols-2 gap-4">
+                          <div>
+                              <label className="font-bold block mb-2">发布层级</label>
+                              <select value={editingNotice.publishLevel||'公司'} onChange={e=>setEditingNotice({...editingNotice, publishLevel:e.target.value as any})} className="w-full border p-3 rounded-xl">
+                                  <option>集团</option><option>公司</option><option>部门</option>
+                              </select>
+                          </div>
                           <div><label className="font-bold block mb-2">发布人</label><input value={editingNotice.publisher||''} onChange={e=>setEditingNotice({...editingNotice, publisher:e.target.value})} className="w-full border p-3 rounded-xl" placeholder="例如：行政部" /></div>
-                          <div><label className="font-bold block mb-2">有效期至</label><input type="date" value={editingNotice.expiryDate||''} onChange={e=>setEditingNotice({...editingNotice, expiryDate:e.target.value})} className="w-full border p-3 rounded-xl" /></div>
                       </div>
+
                       <div className="grid grid-cols-2 gap-4">
-                          <div><label className="font-bold block mb-2">类型</label><select value={editingNotice.type||'general'} onChange={e=>setEditingNotice({...editingNotice, type:e.target.value as any})} className="w-full border p-3 rounded-xl"><option value="general">普通</option><option value="urgent">紧急</option><option value="promotion">晋升</option></select></div>
-                          <div className="pt-8"><label className="flex gap-2"><input type="checkbox" checked={editingNotice.isPinned||false} onChange={e=>setEditingNotice({...editingNotice, isPinned:e.target.checked})} /> 置顶</label></div>
+                          <div>
+                              <label className="font-bold block mb-2">类型</label>
+                              <select value={editingNotice.type||'general'} onChange={e=>setEditingNotice({...editingNotice, type:e.target.value as any})} className="w-full border p-3 rounded-xl">
+                                  <option value="general">普通</option><option value="urgent">紧急</option><option value="promotion">晋升</option>
+                              </select>
+                          </div>
+                          <div>
+                              <label className="font-bold block mb-2">优先级</label>
+                              <select value={editingNotice.priority||'普通'} onChange={e=>setEditingNotice({...editingNotice, priority:e.target.value as any})} className="w-full border p-3 rounded-xl">
+                                  <option>普通</option><option>重要</option><option>紧急</option>
+                              </select>
+                          </div>
                       </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                           <div><label className="font-bold block mb-2">有效期至</label><input type="date" value={editingNotice.expiryDate||''} onChange={e=>setEditingNotice({...editingNotice, expiryDate:e.target.value})} className="w-full border p-3 rounded-xl" /></div>
+                           <div className="pt-8"><label className="flex gap-2"><input type="checkbox" checked={editingNotice.isPinned||false} onChange={e=>setEditingNotice({...editingNotice, isPinned:e.target.checked})} /> 置顶</label></div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                          <div><label className="font-bold block mb-2">展示序号</label><input type="number" value={editingNotice.displayOrder} onChange={e=>setEditingNotice({...editingNotice, displayOrder:Number(e.target.value)})} className="w-full border p-3 rounded-xl" placeholder="1-99" /></div>
+                          <div><label className="font-bold block mb-2">置顶序号</label><input type="number" value={editingNotice.pinnedOrder} onChange={e=>setEditingNotice({...editingNotice, pinnedOrder:Number(e.target.value)})} className="w-full border p-3 rounded-xl" placeholder="0为不置顶" /></div>
+                      </div>
+
                       <div><label className="font-bold block mb-2">内容</label><textarea value={editingNotice.content||''} onChange={e=>setEditingNotice({...editingNotice, content:e.target.value})} className="w-full border p-3 rounded-xl h-32" /></div>
                   </div>
                   <div className="p-6 border-t flex justify-end gap-3"><button onClick={handleSaveNotice} className="bg-blue-600 text-white px-6 py-2 rounded-xl">保存</button></div>

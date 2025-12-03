@@ -1,3 +1,5 @@
+
+
 export interface Employee {
   id: string;
   name: string;
@@ -24,8 +26,13 @@ export interface Notification {
   content?: string; 
   readCount?: number;
   isPinned?: boolean;
-  publisher?: string; // New: 发布人
-  expiryDate?: string; // New: 有效期 (YYYY-MM-DD)
+  publisher?: string; 
+  expiryDate?: string; 
+  // New Fields
+  publishLevel?: '集团' | '公司' | '部门';
+  priority?: '普通' | '重要' | '紧急';
+  displayOrder?: number;
+  pinnedOrder?: number;
 }
 
 export interface LeaderboardEntry {
@@ -58,6 +65,7 @@ export interface RedemptionRecord {
   date: string;
   imageUrl: string;
   status: 'unused' | 'used';
+  redeemCode?: string; // New: 券码
 }
 
 export interface Course {
@@ -166,4 +174,16 @@ export interface Feedback {
     status: 'pending' | 'read';
     name?: string; 
     isAnonymous: boolean; // Explicit anonymous flag
+}
+
+// --- New Type for Point Adjustment History ---
+export interface PointAdjustmentRecord {
+    id: string;
+    targetUserId: string;
+    targetUserName: string;
+    amount: number;
+    date: string;
+    operator: string;
+    isRevoked: boolean;
+    revokedAt?: string;
 }

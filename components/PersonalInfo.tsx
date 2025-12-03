@@ -1,6 +1,7 @@
 
+
 import React from 'react';
-import { Briefcase, Settings } from 'lucide-react';
+import { Briefcase, Settings, Camera } from 'lucide-react';
 import { Employee } from '../types.ts';
 
 interface PersonalInfoProps {
@@ -8,10 +9,11 @@ interface PersonalInfoProps {
   onPointsClick?: () => void;
   onMedalsClick?: () => void;
   onAdminClick?: () => void;
-  onProgressClick?: () => void; // Added prop
+  onProgressClick?: () => void;
+  onAvatarClick?: () => void; // Added prop
 }
 
-export const PersonalInfo: React.FC<PersonalInfoProps> = ({ user, onPointsClick, onMedalsClick, onAdminClick, onProgressClick }) => {
+export const PersonalInfo: React.FC<PersonalInfoProps> = ({ user, onPointsClick, onMedalsClick, onAdminClick, onProgressClick, onAvatarClick }) => {
   
   const isPromotionReady = user.nextLevelProgress >= 100;
 
@@ -32,13 +34,21 @@ export const PersonalInfo: React.FC<PersonalInfoProps> = ({ user, onPointsClick,
        )}
 
       {/* Avatar Section */}
-      <div className="relative z-10 mb-4 group cursor-pointer">
+      <div 
+        className="relative z-10 mb-4 group cursor-pointer"
+        onClick={onAvatarClick}
+      >
         <div className="relative">
           <img
             src={user.avatar}
             alt={user.name}
             className={`w-24 h-24 rounded-full object-cover border-4 shadow-md group-hover:scale-105 transition-transform duration-300 ${isPromotionReady ? 'border-yellow-300 ring-4 ring-yellow-100' : 'border-white'}`}
           />
+          {/* Change Avatar Overlay hint */}
+          <div className="absolute inset-0 bg-black/30 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <Camera className="text-white" size={24} />
+          </div>
+
           <div className={`absolute -bottom-2 -right-2 text-white text-xs font-bold px-3 py-1 rounded-full border-2 border-white shadow-sm ${isPromotionReady ? 'bg-gradient-to-r from-yellow-400 to-orange-500 animate-pulse' : 'bg-gradient-to-r from-blue-400 to-indigo-500'}`}>
             {user.level}
           </div>

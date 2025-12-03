@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { ArrowLeft, Wrench, Coins, History, X, CheckCircle2, ShoppingBag, QrCode, Share2, Download, Check, Minus, Plus } from 'lucide-react';
+import { ArrowLeft, Wrench, Coins, History, X, CheckCircle2, ShoppingBag, QrCode, Share2, Download, Check } from 'lucide-react';
 import { Employee, RedemptionRecord, BenefitItem } from '../types.ts';
 
 interface EmployeeBenefitsProps {
@@ -9,23 +9,18 @@ interface EmployeeBenefitsProps {
   onRedeem: (item: { title: string; points: number; imageUrl: string }) => void;
   history: RedemptionRecord[];
   items: BenefitItem[]; 
+  onEarnPointsClick: () => void; // New Prop
 }
 
 type ShareStep = 'reward' | 'template' | 'poster';
 type RewardType = 'points' | 'cash';
 type PosterStyle = 'business' | 'festive' | 'cool';
 
-export const EmployeeBenefits: React.FC<EmployeeBenefitsProps> = ({ user, onBack, onRedeem, history, items }) => {
+export const EmployeeBenefits: React.FC<EmployeeBenefitsProps> = ({ user, onBack, onRedeem, history, items, onEarnPointsClick }) => {
   const [showHistory, setShowHistory] = useState(false);
   
   // Redemption States
   const [selectedPointItem, setSelectedPointItem] = useState<BenefitItem | null>(null);
-  
-  // Cash/Hybrid Redemption State
-  const [selectedCashItem, setSelectedCashItem] = useState<BenefitItem | null>(null);
-  const [deductionStep, setDeductionStep] = useState<'deduct' | 'form' | 'payment' | 'success'>('deduct');
-  const [deductionPoints, setDeductionPoints] = useState(0); // Points user wants to use
-  const [bookingForm, setBookingForm] = useState({ nickname: '', phone: '', address: '' });
 
   // Share Flow States
   const [shareItem, setShareItem] = useState<BenefitItem | null>(null);
@@ -36,16 +31,8 @@ export const EmployeeBenefits: React.FC<EmployeeBenefitsProps> = ({ user, onBack
   // --- Handlers ---
 
   const handleRedeemClick = (item: BenefitItem) => {
-      // Logic: If item has a PRICE, it enters the Cash/Hybrid flow. 
-      // If item ONLY has points and price is 0/undefined, it enters simple Point flow.
-      if ((item.price || 0) > 0) {
-          setSelectedCashItem(item);
-          setDeductionStep('deduct');
-          setDeductionPoints(0); // Default 0 deduction
-          setBookingForm({ nickname: '', phone: '', address: '' });
-      } else {
-          setSelectedPointItem(item);
-      }
+      // Logic Simplified: All items are redeemed via points regardless of price field
+      setSelectedPointItem(item);
   };
 
   const confirmPointRedemption = () => {
@@ -54,32 +41,6 @@ export const EmployeeBenefits: React.FC<EmployeeBenefitsProps> = ({ user, onBack
           setSelectedPointItem(null);
       }
   };
-
-  // Hybrid Flow Handlers
-  const POINT_EXCHANGE_RATE = 100; // 100 Points = 1 Yuan
-
-  const handleDeductionConfirm = () => {
-      setDeductionStep('form');
-  };
-
-  const handleFormSubmit = (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!bookingForm.nickname || !bookingForm.phone || !bookingForm.address) return alert("请填写完整信息");
-      setDeductionStep('payment');
-  };
-
-  const handlePaymentComplete = () => { 
-      // Deduct points if used
-      if (deductionPoints > 0) {
-         // In a real app, we would call an API here. 
-         // For demo, we assume points are deducted via onRedeem or similar, 
-         // but strictly onRedeem props expects title/points.
-         onRedeem({ title: `${selectedCashItem?.title} (抵扣)`, points: deductionPoints, imageUrl: selectedCashItem?.imageUrl || '' });
-      }
-      setTimeout(() => { setDeductionStep('success'); }, 1000); 
-  };
-  
-  const closeBooking = () => { setSelectedCashItem(null); setDeductionStep('deduct'); };
 
   // --- Share Logic ---
   const startShareFlow = (item: BenefitItem) => {
@@ -177,10 +138,10 @@ export const EmployeeBenefits: React.FC<EmployeeBenefitsProps> = ({ user, onBack
                 </div>
             </div>
             <div className="flex gap-4">
-                <button className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-5 py-2.5 text-slate-700 font-bold hover:bg-blue-50 hover:text-blue-600 transition-all">
+                <button onClick={onEarnPointsClick} className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-5 py-2.5 text-slate-700 font-bold hover:bg-blue-50 hover:text-blue-600 transition-all active:scale-95">
                     <Coins size={18} /> 赚积分
                 </button>
-                <button onClick={() => setShowHistory(true)} className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-5 py-2.5 text-slate-700 font-bold hover:bg-blue-50 hover:text-blue-600 transition-all">
+                <button onClick={() => setShowHistory(true)} className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-5 py-2.5 text-slate-700 font-bold hover:bg-blue-50 hover:text-blue-600 transition-all active:scale-95">
                     <History size={18} /> 兑换记录
                 </button>
             </div>
@@ -205,23 +166,15 @@ export const EmployeeBenefits: React.FC<EmployeeBenefitsProps> = ({ user, onBack
                       </h3>
                       <div className="flex items-center justify-between mt-auto pt-4 border-t border-slate-50">
                           <div className="text-blue-600">
-                              {item.points > 0 ? (
-                                  <>
-                                    <span className="text-2xl font-bold font-mono">{item.points}</span> 
-                                    <span className="text-xs ml-1 font-bold text-slate-400">积分</span>
-                                  </>
-                              ) : (
-                                  <>
-                                    <span className="text-xs font-medium text-slate-400 line-through mr-2">原价</span>
-                                    <span className="text-2xl font-bold font-mono text-rose-600">¥{item.price}</span> 
-                                  </>
-                              )}
+                                {/* Only show points, ignore price as requested */}
+                                <span className="text-2xl font-bold font-mono">{item.points}</span> 
+                                <span className="text-xs ml-1 font-bold text-slate-400">积分</span>
                           </div>
                           
                           <div className="flex gap-2">
                             <button 
                                 onClick={() => handleRedeemClick(item)}
-                                className={`px-4 py-2 rounded-lg text-sm font-bold text-white transition-all active:scale-95 shadow-md ${item.points === 0 ? 'bg-rose-500 hover:bg-rose-600 shadow-rose-200' : 'bg-slate-800 hover:bg-slate-900'}`}
+                                className={`px-4 py-2 rounded-lg text-sm font-bold text-white transition-all active:scale-95 shadow-md bg-slate-800 hover:bg-slate-900`}
                             >
                                 兑换
                             </button>
@@ -321,98 +274,38 @@ export const EmployeeBenefits: React.FC<EmployeeBenefitsProps> = ({ user, onBack
               </div>
           </div>
       )}
-      
-      {/* 3. Cash/Hybrid Booking Modal */}
-      {selectedCashItem && (
-          <div className="fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center backdrop-blur-sm p-4 animate-in fade-in duration-200">
-              <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl flex flex-col overflow-hidden">
-                  <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex justify-between items-center">
-                      <h3 className="text-xl font-bold text-slate-800">
-                          {deductionStep === 'deduct' && '确认订单'}
-                          {deductionStep === 'form' && '填写预约信息'}
-                          {deductionStep === 'payment' && '微信支付'}
-                          {deductionStep === 'success' && '预约成功'}
-                      </h3>
-                      <button onClick={closeBooking} className="text-slate-400 hover:text-slate-600"><X size={24} /></button>
-                  </div>
-                  
-                  {/* Step 1: Deduction Logic */}
-                  {deductionStep === 'deduct' && (
-                      <div className="p-8">
-                           <div className="flex items-center gap-4 mb-6 p-4 bg-rose-50 rounded-xl border border-rose-100">
-                              <img src={selectedCashItem.imageUrl} className="w-16 h-16 rounded-lg object-cover" alt="product" />
-                              <div className="flex-1">
-                                  <h4 className="font-bold text-slate-800">{selectedCashItem.title}</h4>
-                                  <div className="text-rose-600 font-bold mt-1">原价: ¥{selectedCashItem.price}</div>
-                              </div>
-                           </div>
-                           
-                           <div className="mb-6">
-                               <label className="block text-slate-600 text-sm font-bold mb-2 flex justify-between">
-                                   <span>使用积分抵扣 (可用: {user.totalPoints})</span>
-                                   <span className="text-blue-600">{deductionPoints} 积分 = ¥{deductionPoints / POINT_EXCHANGE_RATE}</span>
-                               </label>
-                               <div className="flex items-center gap-4">
-                                   <input 
-                                     type="range" 
-                                     min="0" 
-                                     max={Math.min(user.totalPoints, (selectedCashItem.price || 0) * POINT_EXCHANGE_RATE)} 
-                                     step="100"
-                                     value={deductionPoints}
-                                     onChange={(e) => setDeductionPoints(parseInt(e.target.value))}
-                                     className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                                   />
-                                   <div className="w-16 text-center font-mono font-bold text-slate-700 bg-slate-100 rounded-lg py-1">{deductionPoints}</div>
-                               </div>
-                               <p className="text-xs text-slate-400 mt-2">抵扣比例: 100 积分 = 1 元</p>
-                           </div>
 
-                           <div className="flex justify-between items-center border-t border-slate-100 pt-4 mb-6">
-                               <span className="font-bold text-slate-600">还需支付</span>
-                               <span className="text-2xl font-bold text-rose-600">¥ {((selectedCashItem.price || 0) - (deductionPoints / POINT_EXCHANGE_RATE)).toFixed(2)}</span>
-                           </div>
-
-                           <button onClick={handleDeductionConfirm} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-blue-200 transition-all active:scale-95 text-lg">
-                               确认并填写信息
-                           </button>
-                      </div>
-                  )}
-
-                  {/* Step 2: Contact Form */}
-                  {deductionStep === 'form' && (
-                      <div className="p-8">
-                          <form onSubmit={handleFormSubmit} className="space-y-5">
-                              <div><label className="block text-slate-600 text-sm font-bold mb-2">昵称</label><input type="text" value={bookingForm.nickname} onChange={(e) => setBookingForm({...bookingForm, nickname: e.target.value})} className="w-full pl-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" placeholder="请输入您的昵称" /></div>
-                              <div><label className="block text-slate-600 text-sm font-bold mb-2">电话</label><input type="tel" value={bookingForm.phone} onChange={(e) => setBookingForm({...bookingForm, phone: e.target.value})} className="w-full pl-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" placeholder="请输入手机号码" /></div>
-                              <div><label className="block text-slate-600 text-sm font-bold mb-2">地址</label><textarea value={bookingForm.address} onChange={(e) => setBookingForm({...bookingForm, address: e.target.value})} className="w-full pl-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none resize-none h-24" placeholder="请详细填写服务地址" ></textarea></div>
-                              <div className="flex gap-3 mt-4">
-                                  <button type="button" onClick={() => setDeductionStep('deduct')} className="flex-1 bg-slate-100 text-slate-600 py-3.5 rounded-xl font-bold">上一步</button>
-                                  <button type="submit" className="flex-[2] bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-blue-200 transition-all active:scale-95">提交订单</button>
-                              </div>
-                          </form>
-                      </div>
-                  )}
-
-                  {/* Step 3: Payment */}
-                  {deductionStep === 'payment' && (
-                      <div className="p-8 text-center">
-                          <p className="text-slate-600 mb-6">正在发起支付，需支付 <span className="text-rose-600 font-bold">¥{((selectedCashItem.price || 0) - (deductionPoints / POINT_EXCHANGE_RATE)).toFixed(2)}</span></p>
-                          <button onClick={handlePaymentComplete} className="bg-green-500 text-white px-8 py-3 rounded-xl font-bold w-full shadow-lg shadow-green-200">模拟支付成功</button>
-                      </div>
-                  )}
-
-                  {deductionStep === 'success' && <div className="p-8 text-center"><h3 className="text-2xl font-bold text-slate-800 mb-4">预约成功!</h3><button onClick={closeBooking} className="text-slate-500 underline">关闭</button></div>}
-              </div>
-          </div>
-      )}
-
-      {/* 4. History Modal */}
+      {/* 4. History Modal (Updated to show Codes) */}
       {showHistory && (
           <div className="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center backdrop-blur-sm p-4">
              <div className="bg-white w-full max-w-3xl rounded-2xl shadow-2xl flex flex-col max-h-[80vh]">
                   <div className="p-6 border-b border-slate-100 flex justify-between items-center"><h2 className="text-xl font-bold text-slate-800">兑换记录</h2><button onClick={() => setShowHistory(false)}><X size={24} className="text-slate-400" /></button></div>
-                  <div className="flex-1 overflow-y-auto p-6 space-y-3">
-                      {history.map(r=><div key={r.id} className="flex gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100"><img src={r.imageUrl} className="w-16 h-16 rounded-lg bg-white object-cover" /><div className="flex-1"><h4 className="font-bold text-slate-800">{r.title}</h4><div className="text-sm text-slate-500 mt-1">{r.points} 积分 · {r.date}</div></div></div>)}
+                  <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                      {history.map(r=>(
+                          <div key={r.id} className="flex gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                              <img src={r.imageUrl} className="w-20 h-20 rounded-lg bg-white object-cover" />
+                              <div className="flex-1 flex flex-col justify-between">
+                                  <div>
+                                      <h4 className="font-bold text-slate-800 text-lg">{r.title}</h4>
+                                      <div className="text-sm text-slate-500 mt-1 flex gap-3">
+                                          <span>{r.date}</span>
+                                          <span className="text-blue-600 font-bold">-{r.points} 积分</span>
+                                      </div>
+                                  </div>
+                                  <div className="mt-2 text-sm">
+                                      {r.redeemCode && (
+                                          <div className="flex items-center gap-2">
+                                              <span className="text-slate-500 font-bold">券码:</span>
+                                              <span className="font-mono bg-white border border-slate-200 px-2 py-1 rounded text-slate-700 select-all">{r.redeemCode}</span>
+                                          </div>
+                                      )}
+                                  </div>
+                              </div>
+                              <div className="flex flex-col justify-center items-end">
+                                  <span className="bg-green-100 text-green-700 text-xs px-3 py-1 rounded-full font-bold">兑换成功</span>
+                              </div>
+                          </div>
+                      ))}
                       {history.length === 0 && <div className="text-center text-slate-400 py-10">暂无记录</div>}
                   </div>
              </div>

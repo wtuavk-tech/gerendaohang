@@ -1,6 +1,7 @@
 
 
 import React, { useState } from 'react';
+import { UploadCloud, X, Camera } from 'lucide-react';
 import { PersonalInfo } from './components/PersonalInfo.tsx';
 import { ImportantNotice } from './components/ImportantNotice.tsx';
 import { Banner } from './components/Banner.tsx';
@@ -20,11 +21,11 @@ import { AdminDashboard } from './components/AdminDashboard.tsx';
 import { GiftOverlay } from './components/GiftOverlay.tsx'; 
 import { PromotionAlert } from './components/PromotionAlert.tsx'; 
 import { PromotionPath } from './components/PromotionPath.tsx';
-import { FundPublicity } from './components/FundPublicity.tsx'; // New
-import { FeedbackCenter } from './components/FeedbackCenter.tsx'; // New
+import { FundPublicity } from './components/FundPublicity.tsx'; 
+import { FeedbackCenter } from './components/FeedbackCenter.tsx'; 
 
 import { CURRENT_USER, NOTIFICATIONS, SERVICE_ITEMS, LEADERBOARD_DATA, COURSES, INITIAL_BENEFITS, INITIAL_DOWNLOADS, AVAILABLE_GIFTS, INITIAL_POINT_RULES, INITIAL_RANK_STANDARDS, INITIAL_FUNDS } from './constants.tsx';
-import { Notification, Employee, RedemptionRecord, Course, BenefitItem, DownloadItem, Gift, GiftEvent, GiftHistoryItem, PointRule, LeaderboardEntry, RankStandard, FundRecord, Feedback } from './types.ts';
+import { Notification, Employee, RedemptionRecord, Course, BenefitItem, DownloadItem, Gift, GiftEvent, GiftHistoryItem, PointRule, LeaderboardEntry, RankStandard, FundRecord, Feedback, PointAdjustmentRecord } from './types.ts';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<'dashboard' | 'history' | 'benefits' | 'learning' | 'downloads' | 'points' | 'pending' | 'notice-detail' | 'wishes' | 'medals' | 'admin' | 'promotion-path' | 'funds' | 'feedback'>('dashboard');
@@ -46,6 +47,10 @@ const App: React.FC = () => {
   const [leaderboardData, setLeaderboardData] = useState<LeaderboardEntry[]>(LEADERBOARD_DATA);
   const [user, setUser] = useState<Employee>({ ...CURRENT_USER });
   
+  // --- Avatar Modal State ---
+  const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+
   // --- Rank Management State ---
   const [rankStandards, setRankStandards] = useState<RankStandard[]>(INITIAL_RANK_STANDARDS);
 
@@ -53,6 +58,9 @@ const App: React.FC = () => {
   const [currentGiftEvent, setCurrentGiftEvent] = useState<GiftEvent | null>(null);
   const [giftHistory, setGiftHistory] = useState<GiftHistoryItem[]>([]);
   
+  // --- Point Adjustment History (Admin) ---
+  const [pointAdjustmentRecords, setPointAdjustmentRecords] = useState<PointAdjustmentRecord[]>([]);
+
   // --- Promotion Alert Logic ---
   const [showPromotionAlert, setShowPromotionAlert] = useState(user.nextLevelProgress >= 100);
 
@@ -66,13 +74,17 @@ const App: React.FC = () => {
   const handleRedeem = (item: any) => {
     if (user.totalPoints >= item.points) {
       setUser(prev => ({...prev, totalPoints: prev.totalPoints - item.points}));
+      // Generate a random voucher code like JX-8832-ABCD
+      const code = 'JX-' + Math.floor(1000 + Math.random() * 9000) + '-' + Math.random().toString(36).substr(2, 4).toUpperCase();
+      
       const newRecord: RedemptionRecord = {
         id: Date.now().toString(),
         title: item.title,
         points: item.points,
         date: new Date().toISOString().split('T')[0],
         imageUrl: item.imageUrl,
-        status: 'unused'
+        status: 'unused',
+        redeemCode: code // Add Code
       };
       setRedemptionHistory(prev => [newRecord, ...prev]);
       showToast(`兑换成功！消耗 ${item.points} 积分`);
@@ -101,9 +113,45 @@ const App: React.FC = () => {
   };
 
   const handleAdjustPoints = (userId: string, amount: number) => {
+      // 1. Update Leaderboard
       setLeaderboardData(prev => prev.map(p => p.id === userId ? { ...p, score: p.score + amount } : p).sort((a,b)=>b.score-a.score).map((p,i)=>({...p, rank:i+1})));
+      
+      // 2. Update Current User if matched
       if (user.id === userId) setUser(prev => ({ ...prev, totalPoints: prev.totalPoints + amount }));
+      
+      // 3. Log the Adjustment
+      const targetUser = leaderboardData.find(u => u.id === userId);
+      const newRecord: PointAdjustmentRecord = {
+          id: Date.now().toString(),
+          targetUserId: userId,
+          targetUserName: targetUser?.name || 'Unknown',
+          amount: amount,
+          date: new Date().toLocaleString(),
+          operator: 'Admin',
+          isRevoked: false
+      };
+      setPointAdjustmentRecords(prev => [newRecord, ...prev]);
+
       showToast(`积分调整成功`);
+  };
+
+  const handleRevokePointAdjustment = (recordId: string) => {
+      const record = pointAdjustmentRecords.find(r => r.id === recordId);
+      if (!record || record.isRevoked) return;
+
+      // Reverse the amount
+      const reverseAmount = -record.amount;
+
+      // 1. Update Leaderboard
+      setLeaderboardData(prev => prev.map(p => p.id === record.targetUserId ? { ...p, score: p.score + reverseAmount } : p).sort((a,b)=>b.score-a.score).map((p,i)=>({...p, rank:i+1})));
+
+      // 2. Update Current User if matched
+      if (user.id === record.targetUserId) setUser(prev => ({ ...prev, totalPoints: prev.totalPoints + reverseAmount }));
+
+      // 3. Update Record Status
+      setPointAdjustmentRecords(prev => prev.map(r => r.id === recordId ? { ...r, isRevoked: true, revokedAt: new Date().toLocaleString() } : r));
+
+      showToast(`已撤销积分调整`);
   };
 
   const handleUpdateRankProgress = (userId: string, progress: number) => {
@@ -126,6 +174,28 @@ const App: React.FC = () => {
       setFeedbacks(prev => [newFeedback, ...prev]);
   };
 
+  // Avatar Handling
+  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+              if (event.target?.result) {
+                  setAvatarPreview(event.target.result as string);
+              }
+          };
+          reader.readAsDataURL(e.target.files[0]);
+      }
+  };
+
+  const confirmAvatarChange = () => {
+      if (avatarPreview) {
+          setUser(prev => ({ ...prev, avatar: avatarPreview }));
+          setIsAvatarModalOpen(false);
+          setAvatarPreview(null);
+          showToast('头像更换成功');
+      }
+  };
+
   if (currentView === 'admin') {
       return (
         <AdminDashboard 
@@ -141,6 +211,10 @@ const App: React.FC = () => {
             onUpdateRankProgress={handleUpdateRankProgress}
             fundRecords={fundRecords} setFundRecords={setFundRecords}
             feedbacks={feedbacks} setFeedbacks={setFeedbacks}
+            // New Props
+            redemptionHistory={redemptionHistory}
+            pointAdjustmentRecords={pointAdjustmentRecords}
+            onRevokePointAdjustment={handleRevokePointAdjustment}
         />
       );
   }
@@ -149,7 +223,7 @@ const App: React.FC = () => {
   const renderView = () => {
       switch(currentView) {
           case 'history': return <AnnouncementHistory onBack={handleBack} notifications={notifications} onDetailClick={handleNoticeClick} />;
-          case 'benefits': return <EmployeeBenefits user={user} onBack={handleBack} onRedeem={handleRedeem} history={redemptionHistory} items={benefits} />;
+          case 'benefits': return <EmployeeBenefits user={user} onBack={handleBack} onRedeem={handleRedeem} history={redemptionHistory} items={benefits} onEarnPointsClick={() => setCurrentView('points')} />;
           case 'learning': return <LearningCenter onBack={handleBack} courses={courses} user={user} />;
           case 'downloads': return <Downloads user={user} onBack={handleBack} items={downloads} />;
           case 'points': return <PointsCenter user={user} onBack={handleBack} rules={pointRules} />;
@@ -170,6 +244,46 @@ const App: React.FC = () => {
                     rankTrack={user.rankTrack}
                     nextLevel={user.rankLevel + 1}
                 />
+
+                {/* Avatar Change Modal */}
+                {isAvatarModalOpen && (
+                    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+                        <div className="bg-white rounded-3xl p-8 w-full max-w-md flex flex-col items-center">
+                            <div className="w-full flex justify-between items-center mb-6">
+                                <h3 className="text-xl font-bold text-slate-800">更换头像</h3>
+                                <button onClick={() => setIsAvatarModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full text-slate-500">
+                                    <X size={24} />
+                                </button>
+                            </div>
+                            
+                            <div className="w-40 h-40 rounded-full overflow-hidden border-4 border-slate-100 shadow-lg mb-6 relative group bg-slate-50">
+                                <img src={avatarPreview || user.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                                {!avatarPreview && (
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/10">
+                                       <Camera size={32} className="text-white/80" />
+                                    </div>
+                                )}
+                            </div>
+
+                            <label className="w-full cursor-pointer bg-slate-50 border-2 border-dashed border-slate-300 hover:border-blue-400 hover:bg-blue-50 transition-all rounded-xl p-4 flex flex-col items-center justify-center mb-6 text-slate-500 hover:text-blue-600">
+                                <UploadCloud size={24} className="mb-2" />
+                                <span className="font-bold">点击上传新图片</span>
+                                <input type="file" accept="image/*" className="hidden" onChange={handleAvatarFileChange} />
+                            </label>
+
+                            <div className="flex gap-4 w-full">
+                                <button onClick={() => setIsAvatarModalOpen(false)} className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200">取消</button>
+                                <button 
+                                    onClick={confirmAvatarChange} 
+                                    disabled={!avatarPreview}
+                                    className={`flex-1 py-3 text-white font-bold rounded-xl ${avatarPreview ? 'bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200' : 'bg-slate-300 cursor-not-allowed'}`}
+                                >
+                                    确认更换
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* LEFT COLUMN */}
                 <div className="flex-1 flex flex-col gap-4 h-full min-w-0">
@@ -200,6 +314,10 @@ const App: React.FC = () => {
                             onMedalsClick={() => setCurrentView('medals')} 
                             onAdminClick={() => setCurrentView('admin')} 
                             onProgressClick={() => setCurrentView('promotion-path')} 
+                            onAvatarClick={() => {
+                                setAvatarPreview(null);
+                                setIsAvatarModalOpen(true);
+                            }}
                         />
                     </div>
                     <div className="flex-1 min-h-0 overflow-hidden">
